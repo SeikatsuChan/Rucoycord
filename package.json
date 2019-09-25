@@ -1,0 +1,29 @@
+{
+  "name": "rucoycord",
+  "version": "0.0.1",
+  "description": "Discord bot that gets player stats from rucoyonline.com and links discord accounts to characters.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.16.4",
+    "discord.js": "^11.5.1",
+    "cheerio": "^0.22.0",
+    "enmap": "^5.1.0",
+    "better-sqlite3": "^5.4.3",
+    "request": "^2.88.0"
+  },
+  "engines": {
+    "node": "8.x"
+  },
+  "repository": {
+    "url": "https://github.com/SeikatsuChan/Rucoycord"
+  },
+  "license": "MIT",
+  "keywords": [
+    "node",
+    "glitch",
+    "express"
+  ]
+}
