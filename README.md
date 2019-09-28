@@ -1,4 +1,4 @@
 # Rucoycord
 Customizable Discord bot to link Rucoy Online characters and Discord accounts.
 
-(documentation coming soon TM)
+Learn how to host it yourself: https://seikatsu.gitbook.io/rucoycord/
