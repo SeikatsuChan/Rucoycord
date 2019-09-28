@@ -29,7 +29,7 @@ String.prototype.replaceAll = function(search, replacement) {
     return target.replace(new RegExp(search, 'g'), replacement);
 };
 
-function rucoyToObject(str){
+function rucoyToObject(str) {
   var obj = {
     'name': 0,
     'level': 0,
@@ -60,7 +60,7 @@ client.on("ready", () =>
 {
   const mainGuild = client.guilds.get(process.env.SERVER.toString());
   console.log(`Logged in! ${client.user.username} is active in ${client.guilds.size} server(s)`);
-  client.user.setActivity(`${prefix}help`, { type: 'WATCHING' });
+  client.user.setActivity(`${mainGuild.members.size} members! | ${prefix}help`, { type: 'WATCHING' });
   setInterval( ()=> {
   if(process.env.AUTOROLE === "true") 
   {
@@ -118,7 +118,22 @@ client.on("ready", () =>
     console.log("Players refreshed!")
   }, 900000)
 });
- 
+
+client.on('voiceStateUpdate', (oldMember, newMember) => {
+  if(process.env.VCROLE === "true") {
+    let newUserChannel = newMember.voiceChannel
+    let oldUserChannel = oldMember.voiceChannel
+    if(oldUserChannel === undefined && newUserChannel !== undefined) 
+    {
+      newMember.addRole(process.env.VCROLEID) 
+    } 
+    else if(newUserChannel === undefined)
+    {
+      newMember.removeRole(process.env.VCROLEID)
+    }
+  }
+})
+
 client.on("message", async(message) => 
 {
   if(!message.guild) return;
@@ -142,7 +157,7 @@ client.on("message", async(message) =>
       msg.edit(`**Ping:** ${msg.createdTimestamp - message.createdTimestamp}ms\n**API Latency:** ${Math.round(client.ping)}ms`);
     }
     if(command === "link") {
-    if (!message.guild.members.get(message.author.id).roles.find(r => r.name === process.env.ADMIN_ROLE)) return message.channel.send("You don't have permission to use this command.")
+    if (!message.guild.members.get(message.author.id).roles.has(process.env.ADMIN_ROLE) && process.env.FREE_LINKING === "false") return message.channel.send("You don't have permission to use this command.")
     {
       let member = message.mentions.users.first().id
       args.shift()
@@ -234,6 +249,39 @@ client.on("message", async(message) =>
       .setThumbnail(client.user.avatarURL)
       
       message.channel.send(helpEmbed)
+    }
+    if(command === "pvptest" && message.author.id == process.env.OWNER) 
+    {
+      let char = args.join(" ")
+      if(message.mentions.users.first()) {
+        if(!client.players.has(message.mentions.users.first().id) || client.players.get(message.mentions.users.first().id, "ign") === "not-linked") return message.channel.send(`**${message.mentions.users.first().username}** has no linked account.`)
+        char = client.players.get(message.mentions.users.first().id, "ign")
+      }
+      request(`https://www.rucoyonline.com/characters/${char}`, (error, response, html)=> {
+        if(!error && response.statusCode == 200) 
+        {
+          const $ = cheerio.load(html);
+          const charHeading = $('h3')
+          const charInfo = $('tbody').first()
+          const pvpInfo = $('tbody').last()
+          
+          var character = rucoyToObject(char)
+          var newStr = pvpInfo.text().split("\n")
+          .map(x => x.trim())
+          .filter(function(x){return x != null;})
+          .filter(function(x){return x != "";});
+          console.log(newStr[newStr.indexOf("killed")+1])
+          if(newStr.indexOf("killed") > -1) 
+          {
+            if(newStr[newStr.indexOf("killed")+1].includes(character.name))
+            {
+              message.channel.send("killed")
+            } else {
+              message.channel.send("kill")
+            }
+          }
+        }
+      })
     }
   }
 });
