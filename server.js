@@ -83,6 +83,9 @@ client.on("ready", () =>
             {
               client.players.set(user, true, "supporter")
               mainGuild.members.get(client.players.get(user, "user")).addRole(process.env.SUPPORTERROLE)
+              if(process.env.SUPPORTER_NOTIFS === "true") {
+                mainGuild.channels.get(process.env.SUPPORTER_NOTIF_CHANNEL).send(`<@${user}> gained supporter status.`)
+              }
             }
             let lvl = Math.floor(character.level/100)*100
             if(lvl >= 600 &&  client.players.get(user, "levelrole") != 600)
@@ -146,7 +149,7 @@ client.on("message", async(message) =>
       kills: 0,
       deaths: 0
   });
-  if(message.content.startsWith(prefix)) 
+  if(message.content.startsWith(prefix))
   {
     const args = message.content.slice(prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
@@ -159,8 +162,17 @@ client.on("message", async(message) =>
     if(command === "link") {
     if (!message.guild.members.get(message.author.id).roles.has(process.env.ADMIN_ROLE) && process.env.FREE_LINKING === "false") return message.channel.send("You don't have permission to use this command.")
     {
-      let member = message.mentions.users.first().id
-      args.shift()
+      let member = "none"
+      if(process.env.FREE_LINKING === "true") 
+      {
+        member = message.author.id
+      } 
+      else 
+      {
+        member = message.mentions.users.first().id
+        args.shift()
+      }
+      if(member === "none" || !args[0]) return message.channel.send("No player specified.")
       try { 
         client.players.ensure(member, {
           user: member,
