@@ -41,7 +41,7 @@ function rucoyToObject(str) {
     .map(x => x.trim())
     .filter(function(x){return x != null;})
     .filter(function(x){return x != "";});
-  newStr.forEach(function(v){
+    newStr.forEach(function(v){
     if(v === 'Name'){obj['name'] = 1;}
     else if(obj['name'] == 1){obj['name'] = v;}
     else if(v === 'Level'){obj['level'] = 1;}
@@ -60,7 +60,7 @@ client.on("ready", () =>
 {
   const mainGuild = client.guilds.get(process.env.SERVER.toString());
   console.log(`Logged in! ${client.user.username} is active in ${client.guilds.size} server(s)`);
-  client.user.setActivity(`${mainGuild.members.size} members! | ${prefix}help`, { type: 'WATCHING' });
+  client.user.setActivity(`${client.users.size} members! | ${prefix}help`, { type: 'WATCHING' });
   setInterval( ()=> {
   if(process.env.AUTOROLE === "true") 
   {
@@ -152,6 +152,27 @@ client.on("message", async(message) =>
   if(message.content.startsWith(prefix))
   {
     const args = message.content.slice(prefix.length).trim().split(/ +/g);
+    function clean(text) {
+      if (typeof(text) === "string")
+        return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
+      else
+        return text;
+    }
+    if (message.content.startsWith(prefix + "eval")) {
+      const evalargs = message.content.split(" ").slice(1);
+      if(message.author.id !== process.env.OWNER) return;
+      try {
+        const code = evalargs.join(" ");
+        let evaled = eval(code);
+ 
+        if (typeof evaled !== "string")
+          evaled = require("util").inspect(evaled);
+ 
+          message.channel.send(clean(evaled), {code:"xl"});
+      } catch (err) {
+        message.channel.send(`\`ERROR\` \`\`\`xl\n${clean(err)}\n\`\`\``);
+      }
+    }
     const command = args.shift().toLowerCase();
   
     if(command === "ping")
