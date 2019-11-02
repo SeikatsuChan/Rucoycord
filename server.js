@@ -28,7 +28,20 @@ String.prototype.replaceAll = function(search, replacement) {
     var target = this;
     return target.replace(new RegExp(search, 'g'), replacement);
 };
-
+function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function(txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        );
+    }
+function commaSeparateNumber(val){
+    while (/(\d+)(\d{3})/.test(val.toString())){
+      val = val.toString().replace(/(\d+)(\d{3})/, '$1'+','+'$2');
+    }
+    return val;
+  }
 function rucoyToObject(str) {
   var obj = {
     'name': 0,
@@ -239,6 +252,7 @@ client.on("message", async(message) =>
           let urlname = character.name.replaceAll(" ", "%20")
           let color = "#00ff00"
           if(charHeading.text().includes("Supporter")) color = "#00bfff"
+          if(charHeading.text().includes("Banned")) color = "#ff0000"
           if(charHeading.text().includes("Game Master")) {
             var charEmbed = new Discord.RichEmbed()
             .setTitle(character.name)
@@ -252,7 +266,7 @@ client.on("message", async(message) =>
             .setURL(`https://www.rucoyonline.com/characters/${urlname}`)
             .setColor(color)
             .addField("Level", character.level)
-            .addField("Guild", character.guild)
+            .addField("Guild", `[${character.guild}](https://www.rucoyonline.com/guild/${character.guild.replaceAll(" ", "%20")})`)
             .addField("Last Online", character.last_online, true)
             .addField("Born", character.born, true)
           } else {
@@ -276,7 +290,7 @@ client.on("message", async(message) =>
     {
       let helpEmbed = new Discord.RichEmbed()
       .setTitle(client.user.username)
-      .setDescription("Created by [Seikatsu](https://github.com/SeikatsuChan)\n\n**DM server staff to link your account!**\n\n**__Commands__**\n`ping` - Check the bot's ping\n`player` - Search any player from [rucoyonline.com](https://www.rucoyonline.com)\n`link` - (ADMIN ONLY) link a player to a discord account")
+      .setDescription("Created by [Seikatsu](https://github.com/SeikatsuChan)\n\n**DM server staff to link your account!**\n\n**__Commands__**\n`ping` - Check the bot's ping\n`player` - Search any player from [rucoyonline.com](https://www.rucoyonline.com)\n`link` - (ADMIN ONLY) link a player to a discord account\n`guild` - Search any guild from [rucoyonline.com](https://www.rucoyonline.com)\n`online` - Check how many players and servers are currently online")
       .setURL("https://github.com/SeikatsuChan/Rucoycord")
       .setColor("#ff0000")
       .setThumbnail(client.user.avatarURL)
@@ -316,6 +330,78 @@ client.on("message", async(message) =>
         }
       })
     }
+if(command === "guild")
+{
+	if(!args)
+	{
+		let embed = new Discord.RichEmbed()
+		.setTitle("No guild specified!")
+		.setDescription("Proper usage is `" + prefix + "guild Name`, where \"Name\" is the name of the guild you're looking for.")
+		
+		return message.channel.send(embed)
+	}
+	let guild = toTitleCase(args.join(" "))
+	let urlname = guild.replaceAll(" ", "%20")
+	
+	request(`https://www.rucoyonline.com/guild/${urlname}`, (error, response, html)=> {
+		if(!error && response.statusCode == 200)
+		{
+			const $ = cheerio.load(html);
+			const guildName = $("h3").text()
+			const guildDescription = $("p").text().substring(0, $("p").text().indexOf("Founded on"))
+			const guildFounded = $("p").text().substring($("p").text().indexOf("Founded on") + 11, $("p").text().length)
+			const guildMembers = $("tbody").find("tr").length
+			let leader = "no-leader?"
+			$('tr').each(function(){
+				$(this).find('td').each(function(){
+					if($(this).text().includes("(Leader)"))
+					leader = $(this).text().substring(0, $(this).text().indexOf("(")).trim()
+				})
+			})
+			
+      if(leader === "no-leader?") return message.channel.send("Guild not found...")
+			let guildEmbed = new Discord.RichEmbed()
+			.setTitle(guild)
+			.setDescription(guildDescription)
+			.addField("Founded", guildFounded, true)
+			.addField("Members", guildMembers, true)
+			.addField("Leader", `[${leader}](https://www.rucoyonline.com/characters/${leader.replaceAll(" ", "%20")})`, true)
+			.setColor("#ff0000")
+			.setURL(`https://www.rucoyonline.com/guild/${urlname}`)
+			
+			message.channel.send(guildEmbed)
+		}
+    else return message.channel.send("There was an error finding that guild:\n```" + error + "```")
+	})
+}
+    
+if(command === "online")
+{
+  request("https://www.rucoyonline.com", (error, response, html)=> {
+    if(!error && response.statusCode == 200) {
+      const $ = cheerio.load(html);
+      let onlineCount = "0"
+      let serverCount = "0"
+			$('p').each(function(){
+        if($(this).text().includes("characters")) {
+          onlineCount = $(this).text().substring(0, $(this).text().indexOf("characters")).trim()
+          serverCount = $(this).text().substring($(this).text().indexOf("online")+10, $(this).text().indexOf("servers")).trim()
+        }
+			})
+    let countEmbed = new Discord.RichEmbed()
+    .setColor("#ff0000")
+    .setTitle("Rucoy Online")
+    .addField("Players Online", commaSeparateNumber(onlineCount), true)
+    .addField("Servers", serverCount, true)
+    .setURL("https://www.rucoyonline.com")
+    .setThumbnail("https://www.rucoyonline.com/assets/favicon/favicon-32x32-b4cafe4c726eace2f4165a0f0d185266103ba79598a894886a312e9e6effaa9a.png")
+    
+    message.channel.send(countEmbed)
+    } else {
+      return message.channel.send("There was an error connecting to rucoyonline.com:\n```" + error + "```")
+    }
+  })
+}
   }
 });
  
