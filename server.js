@@ -68,19 +68,68 @@ function rucoyToObject(str) {
   });
   return obj;
 }
-
 client.on("ready", () => 
 {
   const mainGuild = client.guilds.get(process.env.SERVER.toString());
   console.log(`Logged in! ${client.user.username} is active in ${client.guilds.size} server(s)`);
-  client.user.setActivity(`${client.users.size} members! | ${prefix}help`, { type: 'WATCHING' });
+  client.user.setActivity(`${prefix}help`, { type: 'WATCHING' });
+
   setInterval( ()=> {
+  if(process.env.CLASS_ROLES === "true") {
+    client.players.forEach((values, user) => {
+      if(mainGuild.members.has(user)) {
+      //if(client.players.get(user, "supporter") == true) {
+        if(client.players.get(user, "supporter") == true && mainGuild.members.get(user).roles.has(process.env.STANDARD_KNIGHT)) {
+          console.log(client.players.get(user, "user"))
+          mainGuild.members.get(user).addRole(process.env.SUPPORTER_KNIGHT)
+          mainGuild.members.get(user).removeRole(process.env.STANDARD_KNIGHT)
+        } else if(client.players.get(user, "supporter") == true && mainGuild.members.get(user).roles.has(process.env.STANDARD_ARCHER)) {
+          mainGuild.members.get(user).addRole(process.env.SUPPORTER_ARCHER)
+          mainGuild.members.get(user).removeRole(process.env.STANDARD_ARCHER)
+        } else if(client.players.get(user, "supporter") == true && mainGuild.members.get(user).roles.has(process.env.STANDARD_MAGE)) {
+          mainGuild.members.get(user).addRole(process.env.SUPPORTER_MAGE)
+          mainGuild.members.get(user).removeRole(process.env.STANDARD_MAGE)
+        }
+       // }
+      }
+    })
+  }
   if(process.env.AUTOROLE === "true") 
   {
     client.players.forEach((values, user) => {
+      if(mainGuild.members.has(user)) {
       let charname = client.players.get(user, "ign")
       let currentlevel =  client.players.get(user, "levelrole")
       let supporterStatus = client.players.get(user, "supporter")
+      let subStatus = client.players.get(user, "sub")
+      if(subStatus == true && process.env.ROLE_SUB === "true") {
+        var today = new Date();
+        var dd = String(today.getDate()).padStart(2, '0');
+        var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+        var yyyy = today.getFullYear();
+        today = mm + '/' + dd + '/' + yyyy;
+        
+        if(client.players.get(user, "sub_date") === today) {
+          if(client.players.get(user, "diamonds") < Number(process.env.ROLE_COST)) {
+            mainGuild.roles.get(client.players.get(user, "sub_role")).delete()
+            client.players.set(user, "N/A", "sub_role")
+            client.players.set(user, "N/A", "sub_date")
+            client.players.set(user, false, "sub")
+          } else {
+            client.players.set(user, client.user.get(user, "diamonds")-1000, "diamonds")
+            
+            var Endday = new Date();
+            var edd = String(Endday.getDate()).padStart(2, '0');
+            var emm = Endday.getMonth() + 2
+            if(emm == 13) emm = 1
+            emm = String(emm).padStart(2, '0');
+            var eyyyy = Endday.getFullYear();
+            Endday = emm + '/' + edd + '/' + eyyyy;
+            
+            client.players.set(user, Endday, "sub_date")
+          }
+        }
+      }
       if(charname !== "not-linked") 
       {
         request(`https://www.rucoyonline.com/characters/${charname}`, (error, response, html)=> {
@@ -98,6 +147,9 @@ client.on("ready", () =>
               mainGuild.members.get(client.players.get(user, "user")).addRole(process.env.SUPPORTERROLE)
               if(process.env.SUPPORTER_NOTIFS === "true") {
                 mainGuild.channels.get(process.env.SUPPORTER_NOTIF_CHANNEL).send(`<@${user}> gained supporter status.`)
+              }
+              if(process.env.ECONOMY === "true" && process.env.SUPPORTER_DIAMONDS === "true") {
+                client.players.set(user, client.players.get(user, "diamonds")+parseInt(process.env.SUPPORTER_DIAMONDS_NUMBER), "diamonds")
               }
             }
             let lvl = Math.floor(character.level/100)*100
@@ -129,6 +181,7 @@ client.on("ready", () =>
           }
         })
       }
+    }
     });
   }
     console.log("Players refreshed!")
@@ -160,8 +213,13 @@ client.on("message", async(message) =>
       levelrole: 0,
       supporter: false,
       kills: 0,
-      deaths: 0
+      deaths: 0,
+      diamonds: 0,
+      sub: false,
+      sub_date: "N/A",
+      sub_role: "N/A"
   });
+  if(process.env.ECONOMY === "true") client.players.math(key, "+", Math.floor(Math.random()*2), "diamonds")
   if(message.content.startsWith(prefix))
   {
     const args = message.content.slice(prefix.length).trim().split(/ +/g);
@@ -214,7 +272,10 @@ client.on("message", async(message) =>
           levelrole: 0,
           supporter: false,
           kills: 0,
-          deaths: 0
+          deaths: 0,
+          sub: false,
+          sub_date: "N/A",
+          sub_role: "N/A"
         });
         client.players.set(member, args.join(" "), "ign");
         message.channel.send(`Successfully linked **${args.join(" ")}** to <@${member}>`)
@@ -253,6 +314,7 @@ client.on("message", async(message) =>
           let color = "#00ff00"
           if(charHeading.text().includes("Supporter")) color = "#00bfff"
           if(charHeading.text().includes("Banned")) color = "#ff0000"
+          if(character.name === "Suguri") color = "#b273eb"
           if(charHeading.text().includes("Game Master")) {
             var charEmbed = new Discord.RichEmbed()
             .setTitle(character.name)
@@ -330,78 +392,189 @@ client.on("message", async(message) =>
         }
       })
     }
-if(command === "guild")
-{
-	if(!args)
-	{
-		let embed = new Discord.RichEmbed()
-		.setTitle("No guild specified!")
-		.setDescription("Proper usage is `" + prefix + "guild Name`, where \"Name\" is the name of the guild you're looking for.")
-		
-		return message.channel.send(embed)
-	}
-	let guild = toTitleCase(args.join(" "))
-	let urlname = guild.replaceAll(" ", "%20")
-	
-	request(`https://www.rucoyonline.com/guild/${urlname}`, (error, response, html)=> {
-		if(!error && response.statusCode == 200)
-		{
-			const $ = cheerio.load(html);
-			const guildName = $("h3").text()
-			const guildDescription = $("p").text().substring(0, $("p").text().indexOf("Founded on"))
-			const guildFounded = $("p").text().substring($("p").text().indexOf("Founded on") + 11, $("p").text().length)
-			const guildMembers = $("tbody").find("tr").length
-			let leader = "no-leader?"
-			$('tr').each(function(){
-				$(this).find('td').each(function(){
-					if($(this).text().includes("(Leader)"))
-					leader = $(this).text().substring(0, $(this).text().indexOf("(")).trim()
-				})
-			})
-			
-      if(leader === "no-leader?") return message.channel.send("Guild not found...")
-			let guildEmbed = new Discord.RichEmbed()
-			.setTitle(guild)
-			.setDescription(guildDescription)
-			.addField("Founded", guildFounded, true)
-			.addField("Members", guildMembers, true)
-			.addField("Leader", `[${leader}](https://www.rucoyonline.com/characters/${leader.replaceAll(" ", "%20")})`, true)
-			.setColor("#ff0000")
-			.setURL(`https://www.rucoyonline.com/guild/${urlname}`)
-			
-			message.channel.send(guildEmbed)
-		}
-    else return message.channel.send("There was an error finding that guild:\n```" + error + "```")
-	})
-}
-    
-if(command === "online")
-{
-  request("https://www.rucoyonline.com", (error, response, html)=> {
-    if(!error && response.statusCode == 200) {
-      const $ = cheerio.load(html);
-      let onlineCount = "0"
-      let serverCount = "0"
-			$('p').each(function(){
-        if($(this).text().includes("characters")) {
-          onlineCount = $(this).text().substring(0, $(this).text().indexOf("characters")).trim()
-          serverCount = $(this).text().substring($(this).text().indexOf("online")+10, $(this).text().indexOf("servers")).trim()
+    if(command === "guild")
+    {
+      if(!args)
+      {
+        let embed = new Discord.RichEmbed()
+        .setTitle("No guild specified!")
+        .setDescription("Proper usage is `" + prefix + "guild Name`, where \"Name\" is the name of the guild you're looking for.")
+
+        return message.channel.send(embed)
+      }
+      let guild = toTitleCase(args.join(" "))
+      let urlname = guild.replaceAll(" ", "%20")
+
+      request(`https://www.rucoyonline.com/guild/${urlname}`, (error, response, html)=> {
+        if(!error && response.statusCode == 200)
+        {
+          const $ = cheerio.load(html);
+          const guildName = $("h3").text()
+          const guildDescription = $("p").text().substring(0, $("p").text().indexOf("Founded on"))
+          const guildFounded = $("p").text().substring($("p").text().indexOf("Founded on") + 11, $("p").text().length)
+          const guildMembers = $("tbody").find("tr").length
+          let leader = "no-leader?"
+          $('tr').each(function(){
+            $(this).find('td').each(function(){
+              if($(this).text().includes("(Leader)"))
+              leader = $(this).text().substring(0, $(this).text().indexOf("(")).trim()
+            })
+          })
+
+          if(leader === "no-leader?") return message.channel.send("Guild not found...")
+          let guildEmbed = new Discord.RichEmbed()
+          .setTitle(guild)
+          .setDescription(guildDescription)
+          .addField("Founded", guildFounded, true)
+          .addField("Members", guildMembers, true)
+          .addField("Leader", `[${leader}](https://www.rucoyonline.com/characters/${leader.replaceAll(" ", "%20")})`, true)
+          .setColor("#ff0000")
+          .setURL(`https://www.rucoyonline.com/guild/${urlname}`)
+
+          message.channel.send(guildEmbed)
         }
-			})
-    let countEmbed = new Discord.RichEmbed()
-    .setColor("#ff0000")
-    .setTitle("Rucoy Online")
-    .addField("Players Online", commaSeparateNumber(onlineCount), true)
-    .addField("Servers", serverCount, true)
-    .setURL("https://www.rucoyonline.com")
-    .setThumbnail("https://www.rucoyonline.com/assets/favicon/favicon-32x32-b4cafe4c726eace2f4165a0f0d185266103ba79598a894886a312e9e6effaa9a.png")
-    
-    message.channel.send(countEmbed)
-    } else {
-      return message.channel.send("There was an error connecting to rucoyonline.com:\n```" + error + "```")
+        else return message.channel.send("There was an error finding that guild:\n```" + error + "```")
+      })
     }
-  })
-}
+    
+    if(command === "online")
+    {
+      request("https://www.rucoyonline.com", (error, response, html)=> {
+        if(!error && response.statusCode == 200) {
+          const $ = cheerio.load(html);
+          let onlineCount = "0"
+          let serverCount = "0"
+          $('p').each(function(){
+            if($(this).text().includes("characters")) {
+              onlineCount = $(this).text().substring(0, $(this).text().indexOf("characters")).trim()
+              serverCount = $(this).text().substring($(this).text().indexOf("online")+10, $(this).text().indexOf("servers")).trim()
+            }
+          })
+          let countEmbed = new Discord.RichEmbed()
+          .setColor("#ff0000")
+          .setTitle("Rucoy Online")
+          .addField("Players Online", commaSeparateNumber(onlineCount), true)
+          .addField("Servers", serverCount, true)
+          .setURL("https://www.rucoyonline.com")
+          .setThumbnail("https://www.rucoyonline.com/assets/favicon/favicon-32x32-b4cafe4c726eace2f4165a0f0d185266103ba79598a894886a312e9e6effaa9a.png")
+
+          message.channel.send(countEmbed)
+          } else {
+            return message.channel.send("There was an error connecting to rucoyonline.com:\n```" + error + "```")
+          }
+        })
+      }
+      if((command === "balance" || command === "bal") && process.env.ECONOMY === "true") 
+      {
+        if(!message.mentions.users.first()) var player = message.author
+        else var player = message.mentions.users.first()
+        let ptsEmbed = new Discord.RichEmbed()
+        .setTitle(player.username + "'s balance")
+        .setDescription(`${process.env.CURRENCY}**${commaSeparateNumber(client.players.get(player.id, "diamonds"))}**`)
+        .setColor("#ff0000")
+        
+        message.channel.send(ptsEmbed)
+      }
+      if(command === "give" && process.env.ECONOMY === "true") 
+      {
+        if(!message.mentions.users.first() || !args[1]) return message.channel.send("Missing args, proper usage is `" + prefix + "give @user 100`")
+        let giveDiamonds = parseInt(args[1])
+        let userOne = message.author.id
+        let userTwo = message.mentions.users.first().id
+        let notake = false
+        if(message.content.includes("-admin") && message.guild.members.get(message.author.id).roles.has(process.env.ADMIN_ROLE)) notake = true
+        if(giveDiamonds < 1 && !notake) return message.channel.send("You can't give an amount less than 1")
+        if(giveDiamonds > client.players.get(message.author.id, "diamonds") && !notake) return message.channel.send("You don't have enough diamonds to give!")
+        
+        client.players.set(userTwo, client.players.get(userTwo, "diamonds")+giveDiamonds, "diamonds")
+        if(!notake) client.players.set(userOne, client.players.get(userOne, "diamonds")-giveDiamonds, "diamonds")
+        
+        let giveEmbed = new Discord.RichEmbed()
+        .setDescription(`<@${message.author.id}> gifted ${process.env.CURRENCY}**${commaSeparateNumber(giveDiamonds)}** to <@${userTwo}>!`)
+        .setColor("#26CB7C")
+        
+        message.channel.send(giveEmbed)
+      }
+      if((command === "lb" || command === "leaderboard") && process.env.ECONOMY === "true")
+      {
+        const lb = client.players.array().sort((a, b) => b.diamonds - a.diamonds);
+        const top10 = lb.splice(0, 10);
+        const embed = new Discord.RichEmbed()
+        .setTitle("__Leaderboard__")
+        .setThumbnail(message.guild.iconURL)
+        .setColor(0x00AE86);
+        for(const data of top10) {
+          embed.addField(client.users.get(data.user).tag, `${process.env.CURRENCY}${commaSeparateNumber(data.diamonds)}`);
+        }
+        return message.channel.send({embed});
+
+      }
+      if(command === "subscribe" && process.env.ROLE_SUB === "true")
+      {
+        if(client.players.get(message.author.id, "diamonds") < Number(process.env.ROLE_COST)) return message.channel.send("You don't have enough diamonds to subscribe! You need " + commaSeparateNumber(Number(process.env.ROLE_COST)))
+        if(client.players.get(message.author.id, "sub") == true) return message.channel.send("You are already subscribed!")
+        
+        var today = new Date();
+        var dd = String(today.getDate()).padStart(2, '0');
+        var mm = today.getMonth() + 2
+        if(mm == 13) mm = 1
+        mm = String(mm).padStart(2, '0');
+        var yyyy = today.getFullYear();
+        today = mm + '/' + dd + '/' + yyyy;
+        
+        client.players.set(message.author.id, client.players.get(message.author.id, "diamonds")-Number(process.env.ROLE_COST), "diamonds")
+        client.players.set(message.author.id, today, "sub_date")
+        client.players.set(message.author.id, true, "sub")
+        message.guild.createRole({
+          name: `${message.author.username}'s custom role`
+        })
+        .then(role => {
+          role.setPosition(29)
+          message.guild.members.get(message.author.id).addRole(role)
+          client.players.set(message.author.id, role.id, "sub_role")
+        })
+        
+        message.channel.send("All done! You will be charged " + commaSeparateNumber(Number(process.env.ROLE_COST)) + " diamonds every month. To edit your role, type /subrole [name/color] (name/hex). To end your subscription, type /unsubscribe (NOTE: Your diamonds will not be refunded if you do this.)")
+      }
+      if(command === "unsubscribe" && process.env.ROLE_SUB === "true")
+      {
+        if(client.players.get(message.author.id, "sub") == false) return message.channel.send("You aren't subscribed!")
+        
+        message.guild.roles.get(client.players.get(message.author.id, "sub_role")).delete()
+        client.players.set(message.author.id, "N/A", "sub_role")
+        client.players.set(message.author.id, "N/A", "sub_date")
+        client.players.set(message.author.id, false, "sub")
+        
+        message.channel.send("Subscription canceled.")
+      }
+      if(command === "subrole" && process.env.ROLE_SUB === "true") 
+      {
+        if(client.players.get(message.author.id, "sub") == false) return message.channel.send("You need to subscribe to use this command!")
+        if(!args[1] || (args[0] !== "color" && args[0] !== "name")) {
+          let missingArgs = new Discord.RichEmbed()
+          .setColor("#ff0000")
+          .setTitle("Improper usage!")
+          .setDescription("Proper usage of the command:")
+          .addField("/subrole [color] (hex)", "Ex. `/subrole color #ff00ff`")
+          .addField("/subrole [name] (name)", "Ex. `/subrole name My role name`")
+          
+          return message.channel.send(missingArgs)
+        }
+        if(args[0] === "color") {
+          try {
+          message.guild.roles.get(client.players.get(message.author.id, "sub_role")).setColor(args[1])
+          message.channel.send("Color set!")
+          } catch(e) {message.channel.send("Error:\n```" + e + "```")}
+        }
+        else if(args[0] === "name") {
+          try {
+            args.shift()
+            message.guild.roles.get(client.players.get(message.author.id, "sub_role")).setName(args.join(" "))
+            message.channel.send("Name set!")
+          } catch(e) {message.channel.send("Error:\n```" + e + "```")}
+        }
+        else return message.channel.send("There was an issue... ping Seikatsu.")
+      }
   }
 });
  
