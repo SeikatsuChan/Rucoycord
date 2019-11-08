@@ -478,19 +478,21 @@ client.on("message", async(message) =>
       if(command === "give" && process.env.ECONOMY === "true") 
       {
         if(!message.mentions.users.first() || !args[1]) return message.channel.send("Missing args, proper usage is `" + prefix + "give @user 100`")
-        let giveDiamonds = parseInt(args[1])
+        let giveDiamonds = args[1]
+        //if(isNaN(giveDiamonds)) return message.channel.send("You need to specify a **number**!")
         let userOne = message.author.id
         let userTwo = message.mentions.users.first().id
         let notake = false
         if(message.content.includes("-admin") && message.guild.members.get(message.author.id).roles.has(process.env.ADMIN_ROLE)) notake = true
+        if(!/^\d+$/.test(giveDiamonds) && !notake) return message.channel.send("You need to specify a **number**!")
         if(giveDiamonds < 1 && !notake) return message.channel.send("You can't give an amount less than 1")
         if(giveDiamonds > client.players.get(message.author.id, "diamonds") && !notake) return message.channel.send("You don't have enough diamonds to give!")
         
-        client.players.set(userTwo, client.players.get(userTwo, "diamonds")+giveDiamonds, "diamonds")
-        if(!notake) client.players.set(userOne, client.players.get(userOne, "diamonds")-giveDiamonds, "diamonds")
+        client.players.set(userTwo, client.players.get(userTwo, "diamonds")+parseInt(giveDiamonds), "diamonds")
+        if(!notake) client.players.set(userOne, client.players.get(userOne, "diamonds")-parseInt(giveDiamonds), "diamonds")
         
         let giveEmbed = new Discord.RichEmbed()
-        .setDescription(`<@${message.author.id}> gifted ${process.env.CURRENCY}**${commaSeparateNumber(giveDiamonds)}** to <@${userTwo}>!`)
+        .setDescription(`<@${message.author.id}> gifted ${process.env.CURRENCY}**${commaSeparateNumber(parseInt(giveDiamonds))}** to <@${userTwo}>!`)
         .setColor("#26CB7C")
         
         message.channel.send(giveEmbed)
