@@ -4,7 +4,7 @@ const request = require("request");
 const cheerio = require("cheerio");
 const Enmap = require("enmap");
 client.players = new Enmap({ name: "players" });
-const config = require("config.json")
+const config = require("./config.json")
 const prefix = config.PREFIX;
 
 String.prototype.replaceAll = function(search, replacement) {
